@@ -154,14 +154,14 @@ button,input,select{touch-action:manipulation}
    Removed candidate-v3 viewport/overscroll overrides; original layout CSS unchanged. */
 .study-section.exam-focus{border-left:3px solid var(--ac);padding-left:14px}
 </style>
-<meta name="gaokao-build" content="2026-11-12-high-school-srs-v2-2-stress">
+<meta name="gaokao-build" content="2026-11-12-high-school-srs-v2-3-stress-loader">
 </head>
 <body>
 <div class="wrap">
 <div id="pageTop" aria-hidden="true"></div>
 
 <section id="home">
-<h1>📚 高考俄语 · 高频词汇学习 <span style="font-size:12px;color:var(--m);font-weight:500">七至九年级 · 2015—2024 真题</span></h1>
+<h1>📚 高考俄语 · 高频词汇学习 <span style="font-size:12px;color:var(--m);font-weight:500">七至九年级 · 2015—2024 真题 · 修订 v2.3</span></h1>
 <div class="home-sub-compact">按十年正式真题词形近似出现次数排序（跨年覆盖辅助比较）。A：写作/填空；R：识别；G：变位和格支配。</div>
 
 <div class="quick-zone">
@@ -329,7 +329,7 @@ button,input,select{touch-action:manipulation}
 </section>
 
 <section id="browser">
-<div class="topline"><span id="bCount"></span><span>查词 / 复习详情 · 点卡片翻面</span></div>
+<div class="topline"><span id="bCount"></span><span>查词 / 复习详情 · 重音修订 v2.3</span></div>
 <div class="lookup-head">
 <input id="bSearch" placeholder="中文 / 俄语查词；可搜词义、搭配、同根、构词" autocomplete="off">
 <button id="bSearchClear">清空</button>
@@ -647,12 +647,23 @@ function fillMissingStudy(base,patch){
   return out;
 }
 function applyBuiltinEnrichment(){
+  // Built-in word data are the authoritative source for this independent site.
+  // Reconcile existing IndexedDB records even when the card already exists.
+  // Older versions only filled missing study fields, leaving old unaccented
+  // term values visible forever after replacing index.html.
+  // Preserve all scheduling, progress, mistakes and manual-answer history.
   let n=0;
+  const canonicalFields=["term","level","g","meaning","extra","backNote","conjugation","study"];
   for(const p of BUILTIN_ENRICHMENT){
-    const k=p.contentId||id(p),c=db.cards[k];if(!c)continue;
+    const k=p.contentId||id(p),c=db.cards[k];
+    if(!c)continue;
     let changed=false;
-    if(p.study){const s=fillMissingStudy(c.study||c.learning||null,p.study);if(JSON.stringify(s)!==JSON.stringify(c.study||c.learning||null)){c.study=s;changed=true}}
-    if(p.conjugation&&!c.conjugation){c.conjugation=JSON.parse(JSON.stringify(p.conjugation));changed=true}
+    for(const field of canonicalFields){
+      if(!Object.prototype.hasOwnProperty.call(p,field))continue;
+      if(JSON.stringify(c[field])===JSON.stringify(p[field]))continue;
+      c[field]=JSON.parse(JSON.stringify(p[field]));
+      changed=true;
+    }
     if(changed)n++;
   }
   return n;
