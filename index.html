@@ -154,14 +154,14 @@ button,input,select{touch-action:manipulation}
    Removed candidate-v3 viewport/overscroll overrides; original layout CSS unchanged. */
 .study-section.exam-focus{border-left:3px solid var(--ac);padding-left:14px}
 </style>
-<meta name="gaokao-build" content="2026-11-12-high-school-srs-v2-3-stress-loader">
+<meta name="gaokao-build" content="2026-11-19-high-school-srs-v2-4-feedback-fix">
 </head>
 <body>
 <div class="wrap">
 <div id="pageTop" aria-hidden="true"></div>
 
 <section id="home">
-<h1>📚 高考俄语 · 高频词汇学习 <span style="font-size:12px;color:var(--m);font-weight:500">七至九年级 · 2015—2024 真题 · 修订 v2.3</span></h1>
+<h1>📚 高考俄语 · 高频词汇学习 <span style="font-size:12px;color:var(--m);font-weight:500">七至九年级 · 2015—2024 真题 · 修订 v2.4</span></h1>
 <div class="home-sub-compact">按十年正式真题词形近似出现次数排序（跨年覆盖辅助比较）。A：写作/填空；R：识别；G：变位和格支配。</div>
 
 <div class="quick-zone">
@@ -329,7 +329,7 @@ button,input,select{touch-action:manipulation}
 </section>
 
 <section id="browser">
-<div class="topline"><span id="bCount"></span><span>查词 / 复习详情 · 重音修订 v2.3</span></div>
+<div class="topline"><span id="bCount"></span><span>查词 / 复习详情 · 答题修复 v2.4</span></div>
 <div class="lookup-head">
 <input id="bSearch" placeholder="中文 / 俄语查词；可搜词义、搭配、同根、构词" autocomplete="off">
 <button id="bSearchClear">清空</button>
@@ -717,15 +717,6 @@ function withinDays(ts,days){if(!ts)return false;const t=typeof ts==="number"?ts
 function firstStudyTime(c){if(c.firstStudyAt)return Number(c.firstStudyAt);const xs=(c.history||[]).map(h=>h&&h.time).filter(Boolean);return xs.length?Math.min(...xs):null}
 function compactUsage(c,type="general"){
   if(type==="gov"){const g=governanceSpec(c);if(g)return g}
-  if(type==="gov"){
-    const p=currentGovPath||(c.study?.govPaths||[])[0];
-    if(p){
-      out+=`<div><b>正确接格：</b>${esc(p.question)} + ${esc(chineseCaseName(p.case))}${p.alsoCases?.length?`（也可接${p.alsoCases.map(chineseCaseName).join('／')}，依语境）`:''}</div>`;
-      if(p.example)out+=`<div class="muted">例：<span class="ru" style="font-size:20px">${esc(p.example)}</span></div>`;
-      if(c.study?.examFocus)out+=`<div style="margin-top:8px"><b>高考考点：</b>${esc(c.study.examFocus)}</div>`;
-      return out;
-    }
-  }
   if(type==="conj"&&c.conjugation){const x=c.conjugation;return `я ${x["я"]} · ты ${x["ты"]} · они ${x["они"]}`}
   const parts=(c.extra||"").split(/[；;]/).map(x=>x.trim()).filter(Boolean);
   const useful=parts.find(x=>!(/^(сущ\.|прил\.|нареч\.|гл\.|нсв\.|св\.|нсв\s*\/\s*св\.|св\s*\/\s*нсв\.)$/i.test(x)))||parts[0];
@@ -1365,6 +1356,15 @@ function qType(c){
 }
 function testDetailHTML(c,type="general"){
   let out="";
+  if(type==="gov"){
+    const p=currentGovPath||(c.study?.govPaths||[])[0];
+    if(p){
+      out+=`<div><b>正确接格：</b>${esc(p.question)} + ${esc(chineseCaseName(p.case))}${p.alsoCases?.length?`（也可接${p.alsoCases.map(chineseCaseName).join('／')}，依语境）`:''}</div>`;
+      if(p.example)out+=`<div class="muted">例：<span class="ru" style="font-size:20px">${esc(p.example)}</span></div>`;
+      if(c.study?.examFocus)out+=`<div style="margin-top:8px"><b>高考考点：</b>${esc(c.study.examFocus)}</div>`;
+      return out;
+    }
+  }
   if(type==="conj"&&c.conjugation){
     const x=c.conjugation;
     out+=`<div class="conj-correct"><b>正确变位：</b><br>
@@ -1707,7 +1707,7 @@ async function showQ(){
   }
   if(qi>=queue.length){finish();return}
   requestAnimationFrame(()=>window.scrollTo(0,0));
-  answered=false;pendingCorrectMC=false;$("markKnownTest").classList.remove("hidden");$("markKnownTest").disabled=false;$("next").classList.add("hidden");$("fuzzyBtn").classList.add("hidden");$("dontKnow").classList.remove("hidden");
+  answered=false;pendingCorrectMC=false;$("next").disabled=false;$("next").textContent="下一题 →";$("markKnownTest").classList.remove("hidden");$("markKnownTest").disabled=false;$("next").classList.add("hidden");$("fuzzyBtn").classList.add("hidden");$("dontKnow").classList.remove("hidden");
   const fb=$("feedback");fb.className="feedback";fb.innerHTML="";rChoiceContrasts=[];
   const c=db.cards[queue[qi]];if(!c){qi++;showQ();return}
   $("qCount").textContent=`${qi+1} / ${queue.length}`;$("prog").style.width=`${(qi/Math.max(1,queue.length))*100}%`;
@@ -1767,7 +1767,12 @@ function mark(c,grade,errorType){
 function showFeedback(c,cls,title,typeOverride){
   let f=$("feedback"),type=typeOverride||currentQuestionType||qType(c),m=coreMeaning(c);
   f.className="feedback "+cls;
-  f.innerHTML=`${title}<br><b>正确答案：</b><span class="ru">${esc(c.term)}</span> — ${esc(m)}<div class="backdetails">${testDetailHTML(c,type)}</div>`;
+  // Keep basic feedback available if optional details fail.
+  f.innerHTML=`${title}<br><b>正确答案：</b><span class="ru">${esc(c.term)}</span> — ${esc(m)}`;
+  try{f.insertAdjacentHTML("beforeend",`<div class="backdetails">${testDetailHTML(c,type)}</div>`)}catch(e){
+    console.error("答题详情渲染失败",e);
+    f.insertAdjacentHTML("beforeend",'<div class="backdetails muted">扩展解析暂时无法显示，判分不受影响。</div>');
+  }
   if(type==="mc"&&db.settings.confusableR!==false&&rChoiceContrasts.length){
     const rows=rChoiceContrasts.map(x=>`<div style="margin:5px 0"><span class="ru" style="font-size:19px">${esc(x.term)}</span>：${esc(x.meaning)}</div>`).join("");
     f.insertAdjacentHTML("beforeend",`<details class="backdetails"><summary style="cursor:pointer;font-weight:700">查看另三个选项对应的俄语词</summary>${rows}</details>`);
@@ -1811,7 +1816,7 @@ function after(c){
   saveGradedStep(c,qi+1).then(()=>clearJournal(),()=>{});
 }
 function gradeMC(c,o){
-  if(answered)return;
+  if(answered||pendingCorrectMC||gradedSaving)return;
   if(o!==coreMeaning(c)){mark(c,"wrong","meaning");showFeedback(c,"bad","❌ 错误","mc");after(c);return}
   pendingCorrectMC=true;showFeedback(c,"ok","✅ 选对了。若是蒙的/不稳，请点下面“模糊 / 蒙的”。","mc");
   $("dontKnow").classList.add("hidden");$("fuzzyBtn").classList.remove("hidden");$("next").classList.remove("hidden");
@@ -1820,7 +1825,9 @@ $("fuzzyBtn").onclick=()=>{
   if(!pendingCorrectMC)return;const c=db.cards[queue[qi]];mark(c,"fuzzy","meaning");pendingCorrectMC=false;showFeedback(c,"mid","△ 记为模糊 / 蒙对","mc");$("fuzzyBtn").classList.add("hidden");after(c)
 }
 $("next").onclick=async()=>{
-  if(TRKIStore.blocked||gradedSaving)return;
+  if(TRKIStore.blocked||gradedSaving||(!answered&&!pendingCorrectMC))return;
+  if($("next").disabled)return;
+  $("next").disabled=true;
   try{
     if(pendingCorrectMC){
       const c=db.cards[queue[qi]];
